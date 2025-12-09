@@ -8,17 +8,17 @@ from datasets import load_from_disk
 from clearml import Task, Dataset, Model
 
 def evaluate_model(model_task_id: str, processed_dataset_id: str):
-    """
-    Downloads a trained model and a dataset, evaluates the model,
-    and uploads performance metrics and plots as artifacts.
-    """
+
     task = Task.current_task()
     logger = task.get_logger()
 
-    print(f"Step 3: Evaluating model from task ID: {model_task_id}")
+    logger.report_text(f"Step 3: Evaluating model from training task ID: {model_task_id}")
 
     # --- Download Inputs ---
+    logger.report_text("Downloading model artifact...")
     model_path = Model(task_id=model_task_id).get_local_copy()
+
+    logger.report_text(f"Downloading processed dataset artifact (ID: {processed_dataset_id})...")
     processed_data_path = Dataset.get(dataset_id=processed_dataset_id).get_local_copy()
 
     model = AutoModelForSequenceClassification.from_pretrained(model_path)
@@ -26,8 +26,15 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
     test_dataset = tokenized_datasets["test"]
 
     # --- Run Predictions ---
-    eval_trainer = Trainer(model=model, args=TrainingArguments(output_dir="./eval_results"))
+    eval_args = TrainingArguments(
+        output_dir="./eval_results",
+        per_device_eval_batch_size=32,
+    )
+    eval_trainer = Trainer(model=model, args=eval_args)
+
+    logger.report_text("Running predictions on the test set...")
     predictions = eval_trainer.predict(test_dataset)
+    logger.report_text("Prediction complete.")
 
     y_pred = np.argmax(predictions.predictions, axis=-1)
     y_true = predictions.label_ids
@@ -40,7 +47,7 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
         "recall": precision_recall_fscore_support(y_true, y_pred, average='binary')[1],
     }
 
-    print(f"Evaluation Metrics: {metrics_dict}")
+    logger.report_text(f"Evaluation Metrics: {metrics_dict}")
     logger.report_scalar_dict(
         title="Performance Metrics",
         series="evaluation",
@@ -49,41 +56,49 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
     )
 
     # --- Create and Upload Artifacts ---
-    # 1. Confusion Matrix Plot (using only Matplotlib)
-    cm = confusion_matrix(y_true, y_pred)
-    class_names = ['Negative', 'Positive']
-    fig, ax = plt.subplots(figsize=(8, 6))
-    im = ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
-    ax.figure.colorbar(im, ax=ax)
-    ax.set(xticks=np.arange(cm.shape[1]),
-           yticks=np.arange(cm.shape[0]),
-           xticklabels=class_names, yticklabels=class_names,
-           title='Confusion Matrix',
-           ylabel='True label',
-           xlabel='Predicted label')
+    fig = None
+    try:
+        # 1. Confusion Matrix Plot (using dynamic labels from model config)
+        cm = confusion_matrix(y_true, y_pred)
+        # Improvement: Get labels from the model config for better reusability
+        class_names = [model.config.id2label[i] for i in range(len(model.config.id2label))]
 
-    # Loop over data dimensions and create text annotations.
-    thresh = cm.max() / 2.
-    for i in range(cm.shape[0]):
-        for j in range(cm.shape[1]):
-            ax.text(j, i, format(cm[i, j], 'd'),
-                    ha="center", va="center",
-                    color="white" if cm[i, j] > thresh else "black")
-    fig.tight_layout()
+        fig, ax = plt.subplots(figsize=(8, 6))
+        im = ax.imshow(cm, interpolation='nearest', cmap=plt.cm.Blues)
+        ax.figure.colorbar(im, ax=ax)
+        ax.set(xticks=np.arange(cm.shape[1]),
+               yticks=np.arange(cm.shape[0]),
+               xticklabels=class_names, yticklabels=class_names,
+               title='Confusion Matrix',
+               ylabel='True label',
+               xlabel='Predicted label')
 
-    logger.report_matplotlib_figure(
-        title="Analysis",
-        series="Confusion Matrix",
-        figure=fig,
-        iteration=1
-    )
-    print("Confusion matrix plot uploaded as an artifact.")
+        thresh = cm.max() / 2.
+        for i in range(cm.shape[0]):
+            for j in range(cm.shape[1]):
+                ax.text(j, i, format(cm[i, j], 'd'),
+                        ha="center", va="center",
+                        color="white" if cm[i, j] > thresh else "black")
+        fig.tight_layout()
+
+        logger.report_matplotlib_figure(
+            title="Analysis",
+            series="Confusion Matrix",
+            figure=fig,
+            iteration=1
+        )
+        logger.report_text("Confusion matrix plot uploaded as an artifact.")
+
+    finally:
+        if fig:
+            plt.close(fig) # Clean up plot object from memory
 
     # 2. JSON Metrics File
     with open('evaluation_metrics.json', 'w') as f:
         json.dump(metrics_dict, f, indent=4)
     task.upload_artifact(name='evaluation_summary', artifact_object='evaluation_metrics.json')
-    print("Metrics JSON file uploaded as an artifact.")
+    logger.report_text("Metrics JSON file uploaded as an artifact.")
+
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()

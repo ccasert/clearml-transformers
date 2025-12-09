@@ -35,6 +35,11 @@ pipe.add_parameter(
     description="The ClearML Dataset ID of the raw IMDB data.",
     default="01f89193a4df4df9890dc35fb24e53d5"
 )
+pipe.add_parameter(
+    name="base_model",
+    description="The base Hugging Face model to use for tokenizing and training.",
+    default="distilbert-base-uncased"
+)
 
 # --- Define Base Tasks from LOCAL scripts ---
 base_preprocess_task = Task.create(
@@ -44,9 +49,18 @@ base_preprocess_task = Task.create(
 )
 base_train_task = Task.create(
     project_name=PROJECT_NAME, task_name="Base Training Task",
-    script="train.py", docker=DOCKER_IMAGE,
-    docker_bash_setup_script=CONTAINER_SETUP_SCRIPT, add_task_init_call=False
+    script="train.py",
+    binary="accelerate launch",
+    docker=DOCKER_IMAGE,
+    docker_bash_setup_script=CONTAINER_SETUP_SCRIPT,
+    add_task_init_call=False
 )
+base_train_task.set_user_properties(
+    num_nodes=2,
+    ntasks_per_node=1,
+    cpus_per_task=128,
+)
+
 base_eval_task = Task.create(
     project_name=PROJECT_NAME, task_name="Base Evaluation Task",
     script="eval.py", docker=DOCKER_IMAGE,
@@ -58,8 +72,10 @@ preprocess_step_name = "step_preprocess"
 pipe.add_step(
     name=preprocess_step_name,
     base_task_id=base_preprocess_task.id,
-    parameter_override={"Args/raw_dataset_id": "${pipeline.raw_dataset_id}"},
-    # task_overrides=docker_overrides,
+    parameter_override={
+        "Args/raw_dataset_id": "${pipeline.raw_dataset_id}",
+        "Args/base_model": "${pipeline.base_model}"
+    },
 )
 
 train_step_name = "step_train"
@@ -68,10 +84,13 @@ pipe.add_step(
     parents=[preprocess_step_name],
     base_task_id=base_train_task.id,
     parameter_override={
-        "Args/processed_dataset_id": "${{{}.parameters.General/processed_dataset_id}}".format(preprocess_step_name)
+        "Args/processed_dataset_id": "${step_preprocess.parameters.General/processed_dataset_id}",
+        "Args/base_model": "${pipeline.base_model}"
     },
+
     # task_overrides=docker_overrides,
 )
+
 
 eval_step_name = "step_evaluate"
 pipe.add_step(
@@ -79,10 +98,10 @@ pipe.add_step(
     parents=[train_step_name],
     base_task_id=base_eval_task.id,
     parameter_override={
-        "Args/processed_dataset_id": "${{{}.parameters.General/processed_dataset_id}}".format(preprocess_step_name),
-        "Args/model_task_id": "${{{}.id}}".format(train_step_name)
+        "Args/processed_dataset_id": "${step_preprocess.parameters.General/processed_dataset_id}",
+        "Args/model_task_id": "${step_train.id}"
     },
-    # task_overrides=docker_overrides,
 )
+
 
 pipe.start_locally()
