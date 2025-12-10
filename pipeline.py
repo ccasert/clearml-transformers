@@ -57,8 +57,8 @@ base_train_task = Task.create(
 )
 base_train_task.set_user_properties(
     num_nodes=2,
-    ntasks_per_node=1,
-    cpus_per_task=128,
+    ntasks_per_node=4,
+    cpus_per_task=32,
 )
 
 base_eval_task = Task.create(
@@ -76,6 +76,7 @@ pipe.add_step(
         "Args/raw_dataset_id": "${pipeline.raw_dataset_id}",
         "Args/base_model": "${pipeline.base_model}"
     },
+    cache_executed_step=True,
 )
 
 train_step_name = "step_train"
