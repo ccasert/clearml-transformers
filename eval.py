@@ -14,9 +14,15 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
 
     logger.report_text(f"Step 3: Evaluating model from training task ID: {model_task_id}")
 
-    # --- Download Inputs ---
-    logger.report_text("Downloading model artifact...")
-    model_path = Model(task_id=model_task_id).get_local_copy()
+    logger.report_text("Finding training task and its output model artifact...")
+
+    training_task = Task.get_task(task_id=model_task_id)
+
+    # Access the artifacts dictionary of that task. The Trainer saves the
+    #    best model with the key 'model' by default.
+    model_artifact = training_task.artifacts['model']
+
+    model_path = model_artifact.get_local_copy()
 
     logger.report_text(f"Downloading processed dataset artifact (ID: {processed_dataset_id})...")
     processed_data_path = Dataset.get(dataset_id=processed_dataset_id).get_local_copy()
