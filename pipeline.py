@@ -33,7 +33,7 @@ pipe.set_default_execution_queue('experimental')
 pipe.add_parameter(
     name="raw_dataset_id",
     description="The ClearML Dataset ID of the raw IMDB data.",
-    default="01f89193a4df4df9890dc35fb24e53d5"
+    default="f38bce9da2994eeb91e37b850a4049ab"
 )
 pipe.add_parameter(
     name="base_model",
