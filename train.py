@@ -36,18 +36,14 @@ def train_model(processed_dataset_id: str, base_model: str):
         }
         task.connect(hyperparams)
     else:
-        # Other processes must wait for rank 0 to finish its setup
-        dist.barrier()
         hyperparams = {}
 
     processed_data_path = Dataset.get(dataset_id=processed_dataset_id).get_local_copy()
     tokenized_datasets = load_from_disk(processed_data_path)
 
-    dist.barrier()
 
     model = AutoModelForSequenceClassification.from_pretrained(base_model, num_labels=2)
 
-    dist.barrier()
     # =================================================================
 
     # Fix for the deprecation warning in your logs
