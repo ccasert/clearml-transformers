@@ -12,15 +12,12 @@ export WORLD_SIZE=$SLURM_NTASKS
 """
 DOCKER_IMAGE = "nersc/pytorch:24.08.01"
 
-# --- Docker overrides for pipeline steps ---
+# can use Docker overrides for pipeline steps
 docker_overrides = {
     'container.image': DOCKER_IMAGE,
     'container.docker_bash_setup_script': CONTAINER_SETUP_SCRIPT
 }
 
-# ===================================================================================
-# PIPELINE DEFINITION
-# ===================================================================================
 
 pipe = PipelineController(
     name=PIPELINE_NAME,
@@ -41,7 +38,6 @@ pipe.add_parameter(
     default="distilbert-base-uncased"
 )
 
-# --- Define Base Tasks from LOCAL scripts ---
 base_preprocess_task = Task.create(
     project_name=PROJECT_NAME, task_name="Base Preprocessing Task",
     script="preprocess.py", docker=DOCKER_IMAGE,
@@ -67,7 +63,6 @@ base_eval_task = Task.create(
     docker_bash_setup_script=CONTAINER_SETUP_SCRIPT, add_task_init_call=False
 )
 
-# --- Add steps to the pipeline ---
 preprocess_step_name = "step_preprocess"
 pipe.add_step(
     name=preprocess_step_name,
@@ -88,8 +83,6 @@ pipe.add_step(
         "Args/processed_dataset_id": "${step_preprocess.parameters.General/processed_dataset_id}",
         "Args/base_model": "${pipeline.base_model}"
     },
-
-    # task_overrides=docker_overrides,
 )
 
 
