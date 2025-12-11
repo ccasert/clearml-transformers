@@ -55,19 +55,18 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
     }
 
     logger.report_text(f"Evaluation Metrics: {metrics_dict}")
-    logger.report_scalar_dict(
-        title="Performance Metrics",
-        series="evaluation",
-        iteration=1,
-        values=metrics_dict
-    )
+    for metric_name, metric_value in metrics_dict.items():
+        logger.report_scalar(
+            title="Performance Metrics",
+            series=metric_name,
+            value=metric_value,
+            iteration=1
+        )
 
     # --- Create and Upload Artifacts ---
     fig = None
     try:
-        # 1. Confusion Matrix Plot (using dynamic labels from model config)
         cm = confusion_matrix(y_true, y_pred)
-        # Improvement: Get labels from the model config for better reusability
         class_names = [model.config.id2label[i] for i in range(len(model.config.id2label))]
 
         fig, ax = plt.subplots(figsize=(8, 6))
