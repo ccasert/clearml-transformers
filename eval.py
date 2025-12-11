@@ -35,6 +35,7 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
     eval_args = TrainingArguments(
         output_dir="./eval_results",
         per_device_eval_batch_size=32,
+        report_to="none"
     )
     eval_trainer = Trainer(model=model, args=eval_args)
 
