@@ -71,7 +71,14 @@ def train_model(processed_dataset_id: str, base_model: str):
     trainer.train()
 
     if rank == 0:
-        logger.report_text("Training complete. Best model automatically uploaded as an artifact by ClearML.")
+        logger.report_text("Training complete. Uploading final best model as 'model' artifact...")
+
+        final_model_path = "./final_model"
+        trainer.save_model(final_model_path)
+
+        task.upload_artifact(name="model", artifact_object=final_model_path)
+
+        logger.report_text("Artifact named 'model' uploaded successfully.")
 
     dist.destroy_process_group()
 
