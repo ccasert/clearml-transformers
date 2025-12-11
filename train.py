@@ -44,9 +44,6 @@ def train_model(processed_dataset_id: str, base_model: str):
 
     model = AutoModelForSequenceClassification.from_pretrained(base_model, num_labels=2)
 
-    # =================================================================
-
-    # Fix for the deprecation warning in your logs
     training_args = TrainingArguments(
         output_dir=f"./results_rank_{rank}",
         num_train_epochs=hyperparams.get('epochs', 3),
@@ -57,7 +54,6 @@ def train_model(processed_dataset_id: str, base_model: str):
         logging_steps=100,
         eval_strategy="epoch",
         save_strategy="epoch",
-        load_best_model_at_end=True,
         report_to="clearml",
     )
 

@@ -18,8 +18,6 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
 
     training_task = Task.get_task(task_id=model_task_id)
 
-    # Access the artifacts dictionary of that task. The Trainer saves the
-    #    best model with the key 'model' by default.
     model_artifact = training_task.artifacts['model']
 
     model_path = model_artifact.get_local_copy()
@@ -31,7 +29,6 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
     tokenized_datasets = load_from_disk(processed_data_path)
     test_dataset = tokenized_datasets["test"]
 
-    # --- Run Predictions ---
     eval_args = TrainingArguments(
         output_dir="./eval_results",
         per_device_eval_batch_size=32,
@@ -46,7 +43,6 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
     y_pred = np.argmax(predictions.predictions, axis=-1)
     y_true = predictions.label_ids
 
-    # --- Calculate and Log Metrics ---
     metrics_dict = {
         "accuracy": accuracy_score(y_true, y_pred),
         "f1_score": precision_recall_fscore_support(y_true, y_pred, average='binary')[2],
@@ -63,7 +59,6 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
             iteration=1
         )
 
-    # --- Create and Upload Artifacts ---
     fig = None
     try:
         cm = confusion_matrix(y_true, y_pred)
@@ -97,9 +92,7 @@ def evaluate_model(model_task_id: str, processed_dataset_id: str):
 
     finally:
         if fig:
-            plt.close(fig) # Clean up plot object from memory
-
-    # 2. JSON Metrics File
+            plt.close(fig)
     with open('evaluation_metrics.json', 'w') as f:
         json.dump(metrics_dict, f, indent=4)
     task.upload_artifact(name='evaluation_summary', artifact_object='evaluation_metrics.json')

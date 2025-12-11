@@ -12,7 +12,6 @@ def preprocess_data(raw_dataset_id: str, base_model: str):
     logger.report_text(f"Step 1: Preprocessing data from raw dataset ID: {raw_dataset_id}")
     logger.report_text(f"Using base model for tokenizer: {base_model}")
 
-    # Get a local copy of the raw data
     raw_data_path = Dataset.get(dataset_id=raw_dataset_id).get_local_copy()
 
     data_files = {
@@ -29,9 +28,8 @@ def preprocess_data(raw_dataset_id: str, base_model: str):
 
     tokenized_datasets = hf_dataset.map(tokenize_function, batched=True)
 
-    # Clean the base_model string to be a valid dataset name component
     cleaned_model_name = re.sub(r'[^a-zA-Z0-9_-]', '_', base_model.split("/")[-1])
-    dataset_name = f"processed_{cleaned_model_name}_padded" # Added suffix for clarity
+    dataset_name = f"processed_{cleaned_model_name}_padded"
 
     processed_dataset = Dataset.create(
         dataset_project=task.get_project_name(),
