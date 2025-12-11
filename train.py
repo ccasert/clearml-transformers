@@ -38,8 +38,14 @@ def train_model(processed_dataset_id: str, base_model: str):
     else:
         hyperparams = {}
 
+    if rank != 0:
+        dist.barrier()
+
     processed_data_path = Dataset.get(dataset_id=processed_dataset_id).get_local_copy()
     tokenized_datasets = load_from_disk(processed_data_path)
+
+    if rank == 0:
+        dist.barrier()
 
 
     model = AutoModelForSequenceClassification.from_pretrained(base_model, num_labels=2)
